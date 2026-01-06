@@ -70,34 +70,35 @@ CREATE TABLE ChannelMembers(
 );
 
 CREATE TABLE [Messages](
-    MessageID UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWSEQUENTIALID(),
+    MessageID UNIQUEIDENTIFIER DEFAULT NEWSEQUENTIALID(),
     ChannelID UNIQUEIDENTIFIER NOT NULL,
     UserID UNIQUEIDENTIFIER NOT NULL,
 	-- 0: Text, 1: Image, 2: File, 3: Voice, 4: Video
-	[MessageType] INT DEFAULT 0
+	[MessageType] INT DEFAULT 0,
 
     Content NVARCHAR(MAX) NOT NULL,
     CreateAt DATETIME2 DEFAULT SYSUTCDATETIME(),
 
-    CONSTRAINT FK_Messages_Channels FOREIGN KEY (ChannelID) REFERENCES Channels(ChannelID),
-    CONSTRAINT FK_Messages_UserID FOREIGN KEY (UserID) REFERENCES Users(UserID)
+	CONSTRAINT PK_Messages PRIMARY KEY(ChannelID, UserID, MessageID),
+    CONSTRAINT FK_Messages_ChannelMembers FOREIGN KEY (ChannelID, UserID) REFERENCES ChannelMembers(ChannelID, UserID) ON DELETE NO ACTION,
 );
 
 CREATE TABLE ReadReceipts (
     ChannelID UNIQUEIDENTIFIER NOT NULL, 
     UserID UNIQUEIDENTIFIER NOT NULL,
     
-    LastReadMessageID UNIQUEIDENTIFIER NOT NULL,
+    LastReadMessageID UNIQUEIDENTIFIER,
     LastReadTime DATETIME2 DEFAULT SYSUTCDATETIME(),
 
-    CONSTRAINT PK_ReadReceipts PRIMARY KEY (ChannelID, UserID),
-    CONSTRAINT FK_ReadReceipts_User FOREIGN KEY (UserID) REFERENCES Users(UserID) ON DELETE CASCADE, 
-    CONSTRAINT FK_ReadReceipts_Messages FOREIGN KEY (LastReadMessageID) REFERENCES [Messages](MessageID) ON DELETE CASCADE
+    CONSTRAINT PK_ReadReceipts PRIMARY KEY (ChannelID,UserID),
+    CONSTRAINT FK_ReadReceipts_Messages FOREIGN KEY (ChannelID, UserID, LastReadMessageID) REFERENCES [Messages](ChannelID, UserID, MessageID) ON DELETE CASCADE,
 );
 
 CREATE TABLE Attachments (
     AttachmentID UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWSEQUENTIALID(),
     MessageID UNIQUEIDENTIFIER NOT NULL,
+	ChannelID UNIQUEIDENTIFIER NOT NULL,
+    UserID UNIQUEIDENTIFIER NOT NULL,
 
     [FileName] NVARCHAR(255) NOT NULL,
     ContentType NVARCHAR(100) NOT NULL,
@@ -107,7 +108,7 @@ CREATE TABLE Attachments (
     FileSize BIGINT NOT NULL,
     FileBlobID UNIQUEIDENTIFIER NOT NULL,
 
-    CONSTRAINT FK_Attachments_Messages FOREIGN KEY (MessageID) REFERENCES [Messages](MessageID)
+    CONSTRAINT FK_Attachments_Messages FOREIGN KEY (ChannelID, UserID, MessageID) REFERENCES [Messages](ChannelID, UserID, MessageID) ON DELETE CASCADE,
 );
 
 CREATE INDEX IX_Messages_Channel_Time ON [Messages] (ChannelID ASC, CreateAt DESC);
