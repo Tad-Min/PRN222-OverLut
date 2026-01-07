@@ -29,12 +29,37 @@ public partial class ChannelMemberDAO
     {
         return await Task.FromResult(_context.ChannelMembers.Where(cm => cm.ChannelId == channelId).ToList());
     }
+
+    // get single member
+    public async Task<ChannelMember?> GetMemberAsync(Guid channelId, Guid userId)
+    {
+        return await _context.ChannelMembers.FindAsync(channelId, userId);
+    }
+
+    // remove single member
+    public async Task RemoveMemberAsync(Guid channelId, Guid userId)
+    {
+        var member = await _context.ChannelMembers.FindAsync(channelId, userId);
+        if (member == null) return;
+        _context.ChannelMembers.Remove(member);
+        await _context.SaveChangesAsync();
+    }
+
     // Remove all members for a channel (used when deleting a channel)
     public async Task RemoveMembersByChannelIdAsync(Guid channelId)
     {
         var members = _context.ChannelMembers.Where(cm => cm.ChannelId == channelId).ToList();
         if (members.Count == 0) return;
         _context.ChannelMembers.RemoveRange(members);
+        await _context.SaveChangesAsync();
+    }
+
+    // update nickname for a member
+    public async Task UpdateMemberNicknameAsync(Guid channelId, Guid userId, string? nickname)
+    {
+        var member = await _context.ChannelMembers.FindAsync(channelId, userId);
+        if (member == null) return;
+        member.Nickname = nickname;
         await _context.SaveChangesAsync();
     }
 }

@@ -1,13 +1,14 @@
+using Newtonsoft.Json;
+using OverLut.Models.BusinessObjects;
+using OverLut.Models.BusinessObjects;
+using OverLut.Models.DAOs;
+using OverLut.Models.DAOs;
+using OverLut.Models.DTOs;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Channels;
 using System.Threading.Tasks;
-using OverLut.Models.BusinessObjects;
-using OverLut.Models.DAOs;
-using Newtonsoft.Json;
-using OverLut.Models.BusinessObjects;
-using OverLut.Models.DAOs;
-using OverLut.Models.DTOs;
 
 namespace OverLut.Models.Repositories
 {
@@ -127,7 +128,6 @@ namespace OverLut.Models.Repositories
 
             try
             {
-                // Remove members first to avoid FK/PK conflicts
                 await _ChannelMemberDAO.RemoveMembersByChannelIdAsync(channelId);
 
                 await _channelDAO.DeleteChannelAsync(channel);
@@ -141,18 +141,68 @@ namespace OverLut.Models.Repositories
         #endregion
 
         #region member methods
-        public Task<bool> AddMemberToChannelAsync()
+        public async Task<bool> AddMemberToChannelAsync(ChannelMemberDTO memberDto)
         {
-            throw new NotImplementedException();
+            if (memberDto == null) return false;
 
+            // Validate channel exists
+            var channel = await _channelDAO.GetChannelByIdAsync(memberDto.ChannelId);
+            if (channel == null) return false;
+
+            // Prevent duplicate membership
+            var existing = await _ChannelMemberDAO.GetMemberAsync(memberDto.ChannelId, memberDto.UserId);
+            if (existing != null) return false;
+
+            var entity = new ChannelMember
+            {
+                ChannelId = memberDto.ChannelId,
+                UserId = memberDto.UserId,
+                Nickname = memberDto.Nickname,
+                MemberRole = memberDto.MemberRole,
+                Permissions = memberDto.Permissions
+            };
+
+            try
+            {
+                await _ChannelMemberDAO.AddMemberToChannelAsync(entity);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
-        public Task<bool> RemoveMemberFromChannelAsync()
+        public async Task<bool> RemoveMemberFromChannelAsync(Guid channelId, Guid userId)
         {
-            throw new NotImplementedException();
+            // ensure member exists
+            var existing = await _ChannelMemberDAO.GetMemberAsync(channelId, userId);
+            if (existing == null) return false;
+
+            try
+            {
+                await _ChannelMemberDAO.RemoveMemberAsync(channelId, userId);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
-        public Task<bool> UdateMemberNickName()
+        public async Task<bool> UdateMemberNickName(Guid channelId, Guid userId, string? nickname)
         {
-            throw new NotImplementedException();
+            // ensure member exists
+            var existing = await _ChannelMemberDAO.GetMemberAsync(channelId, userId);
+            if (existing == null) return false;
+
+            try
+            {
+                await _ChannelMemberDAO.UpdateMemberNicknameAsync(channelId, userId, nickname);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
         #endregion
 
