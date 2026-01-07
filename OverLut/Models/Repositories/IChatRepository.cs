@@ -8,10 +8,17 @@ namespace OverLut.Models.Repositories
         #region Channel methods
         Task<bool> CreateChannelAsync();
         Task<IEnumerable<ChannelDTO>> GetAllChannelByUserIDAsync(Guid userID);
+<<<<<<< Updated upstream
         public Task<IEnumerable<ChannelDTO>> GetAllChannelByChannelName(string ChannelName);
         Task<ChannelDTO> EditChannelAsync();
         Task<bool> UpdateChannelAsync();
         Task<bool> DeleteChannelAsync();
+=======
+        Task<IEnumerable<ChannelDTO>> GetAllChannelByChannelName(string ChannelName);
+        Task<ChannelDTO> EditChannelAsync(Guid channelId);
+        Task<bool> UpdateChannelAsync(ChannelDTO channel);
+        Task<bool> DeleteChannelAsync(Guid channelId);
+>>>>>>> Stashed changes
         #endregion
 
         #region member methods

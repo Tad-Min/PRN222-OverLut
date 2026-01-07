@@ -29,5 +29,12 @@ public partial class ChannelMemberDAO
     {
         return await Task.FromResult(_context.ChannelMembers.Where(cm => cm.ChannelId == channelId).ToList());
     }
-
+    // Remove all members for a channel (used when deleting a channel)
+    public async Task RemoveMembersByChannelIdAsync(Guid channelId)
+    {
+        var members = _context.ChannelMembers.Where(cm => cm.ChannelId == channelId).ToList();
+        if (members.Count == 0) return;
+        _context.ChannelMembers.RemoveRange(members);
+        await _context.SaveChangesAsync();
+    }
 }

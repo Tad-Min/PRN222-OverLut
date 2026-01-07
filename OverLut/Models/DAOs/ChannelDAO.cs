@@ -1,4 +1,5 @@
-﻿using OverLut.Models.BusinessObjects;
+﻿using Microsoft.EntityFrameworkCore;
+using OverLut.Models.BusinessObjects;
 using System;
 using System.Collections.Generic;
 
@@ -23,6 +24,32 @@ public class ChannelDAO
     public async Task DeleteChannelAsync(Channel channel)
     {
         _context.Channels.Remove(channel);
+        await _context.SaveChangesAsync();
+    }
+
+    // Get channels by partial or full name (case-insensitive)
+    public async Task<List<Channel>> GetChannelsByNameAsync(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return await _context.Channels.ToListAsync();
+        }
+
+        var pattern = name.Trim();
+        return await _context.Channels
+            .Where(c => c.ChannelName != null && EF.Functions.Like(c.ChannelName, $"%{pattern}%"))
+            .ToListAsync();
+    }
+    // Get channel by id
+    public async Task<Channel?> GetChannelByIdAsync(Guid channelId)
+    {
+        return await _context.Channels.FindAsync(channelId);
+    }
+
+    // Update channel
+    public async Task UpdateChannelAsync(Channel channel)
+    {
+        _context.Channels.Update(channel);
         await _context.SaveChangesAsync();
     }
 }
