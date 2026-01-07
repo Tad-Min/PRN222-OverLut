@@ -1,4 +1,10 @@
-﻿using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using OverLut.Models.BusinessObjects;
+using OverLut.Models.DAOs;
+using Newtonsoft.Json;
 using OverLut.Models.BusinessObjects;
 using OverLut.Models.DAOs;
 using OverLut.Models.DTOs;
@@ -34,32 +40,103 @@ namespace OverLut.Models.Repositories
         {
             try
             {
-                
+                var channel = new Channel
+                {
+                    ChannelType = 0,
+                    ChannelName = "New Channel",
+                    DefaultPermissions = 0,
+                    CreateAt = DateTime.UtcNow,
+                };
+
+                await _channelDAO.AddChannelAsync(channel);
                 return true;
             }
             catch {
                 return false;
             }
         }
-        public Task<IEnumerable<ChannelDTO>> GetAllChannelByUserIDAsync(Guid userID)
+        public async Task<IEnumerable<ChannelDTO>> GetAllChannelByUserIDAsync(Guid userID)
         {
-            throw new NotImplementedException();
+            var channelsMembers = await _ChannelMemberDAO.GetChannelsFromUserIdAsync(userID);
+
+            var channels = channelsMembers.Select(cm => new ChannelDTO
+            {
+                ChannelId = cm.Channel.ChannelId,
+                ChannelType = cm.Channel.ChannelType,
+                ChannelName = cm.Channel.ChannelName,
+                DefaultPermissions = cm.Channel.DefaultPermissions,
+                CreateAt = cm.Channel.CreateAt,
+            }).ToList();
+            return channels;
         }
-        public Task<IEnumerable<ChannelDTO>> GetAllChannelByChannelName(string ChannelName)
+        public async Task<IEnumerable<ChannelDTO>> GetAllChannelByChannelName(string channelName)
         {
-            throw new NotImplementedException();
+            var channels = await _channelDAO.GetChannelsByNameAsync(channelName);
+
+            var ChannelByName = channels.Select(c => new ChannelDTO
+            {
+                ChannelId = c.ChannelId,
+                ChannelName = c.ChannelName,
+                ChannelType = c.ChannelType,
+                DefaultPermissions = c.DefaultPermissions,
+                CreateAt = c.CreateAt
+            }).ToList();
+
+            return ChannelByName;
         }
-        public Task<ChannelDTO> EditChannelAsync()
+        public async Task<ChannelDTO> EditChannelAsync(Guid channelId)
         {
-            throw new NotImplementedException(); 
+            var channel = await _channelDAO.GetChannelByIdAsync(channelId);
+            if (channel == null) return null;
+
+            return new ChannelDTO
+            {
+                ChannelId = channel.ChannelId,
+                ChannelName = channel.ChannelName,
+                ChannelType = channel.ChannelType,
+                DefaultPermissions = channel.DefaultPermissions,
+                CreateAt = channel.CreateAt
+            };
         }
-        public Task<bool> UpdateChannelAsync()
+        public async Task<bool> UpdateChannelAsync(ChannelDTO channelDto)
         {
-            throw new NotImplementedException();
+            if (channelDto == null) return false;
+
+            var channel = await _channelDAO.GetChannelByIdAsync(channelDto.ChannelId);
+            if (channel == null) return false;
+
+            
+            channel.ChannelName = channelDto.ChannelName;
+            channel.ChannelType = channelDto.ChannelType;
+            channel.DefaultPermissions = channelDto.DefaultPermissions;
+
+            try
+            {
+                await _channelDAO.UpdateChannelAsync(channel);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
-        public Task<bool> DeleteChannelAsync()
+        public async Task<bool> DeleteChannelAsync(Guid channelId )
         {
-            throw new NotImplementedException();
+            var channel = await _channelDAO.GetChannelByIdAsync(channelId);
+            if (channel == null) return false;
+
+            try
+            {
+                // Remove members first to avoid FK/PK conflicts
+                await _ChannelMemberDAO.RemoveMembersByChannelIdAsync(channelId);
+
+                await _channelDAO.DeleteChannelAsync(channel);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
         #endregion
 

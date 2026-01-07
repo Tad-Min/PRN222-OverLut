@@ -9,9 +9,9 @@ namespace OverLut.Models.Repositories
         Task<bool> CreateChannelAsync();
         Task<IEnumerable<ChannelDTO>> GetAllChannelByUserIDAsync(Guid userID);
         Task<IEnumerable<ChannelDTO>> GetAllChannelByChannelName(string ChannelName);
-        Task<ChannelDTO> EditChannelAsync();
-        Task<bool> UpdateChannelAsync();
-        Task<bool> DeleteChannelAsync();
+        Task<ChannelDTO> EditChannelAsync(Guid channelId);
+        Task<bool> UpdateChannelAsync(ChannelDTO channel);
+        Task<bool> DeleteChannelAsync(Guid channelId);
         #endregion
 
         #region member methods
