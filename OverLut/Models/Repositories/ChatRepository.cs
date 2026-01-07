@@ -1,4 +1,5 @@
-﻿using OverLut.Models.BusinessObjects;
+﻿using Newtonsoft.Json;
+using OverLut.Models.BusinessObjects;
 using OverLut.Models.DAOs;
 using OverLut.Models.DTOs;
 
@@ -83,23 +84,49 @@ namespace OverLut.Models.Repositories
         {
             try
             {
-                await _messageDAO.CreateMessageAsync(new Message
+                var messageEntity = new Message
                 {
                     UserId = message.UserId,
                     ChannelId = message.ChannelId,
                     MessageType = message.MessageType,
                     Content = message.Content,
-                });
+                    CreateAt = DateTime.UtcNow
+                };
+                await _messageDAO.CreateMessageAsync(messageEntity);
+
+                message.MessageId = messageEntity.MessageId;
+                message.CreateAt = messageEntity.CreateAt;
+
+                // 2. Lấy danh sách thành viên trong nhóm để Broadcast
+                // Giả sử bạn viết hàm này trong ChannelMemberDAO
+                var memberIds = await _ChannelMemberDAO.GetMemberIdsByChannelIdAsync(message.ChannelId);
+
+                var jsonResponse = JsonConvert.SerializeObject(message);
+
+                // 3. Gửi tin nhắn đến từng thành viên online
+                foreach (var memberId in memberIds)
+                {
+                    await ChatWebSocketHandler.SendToUserAsync(memberId.ToString(), jsonResponse);
+                }
+
                 return true;
             }
             catch
             {
                 return false;
+                
             }
         }
-        public Task<IEnumerable<MessageDTO>> GetMessagesAsync()
+        public async Task<IEnumerable<MessageDTO>> GetMessagesByChannelIDAsync(Guid channelId, int page = 0, int page_size = 20)
         {
-            throw new NotImplementedException();
+            try
+            {
+                return await _messageDAO.GetMessagesByChannelIDAsync(ChannelId, page, page_size);
+            }
+            catch (Exception ex)
+            {
+                throw;
+            }
         }
         public Task<bool> DeleteMessageAsync()
         {

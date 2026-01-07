@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using OverLut.Models.BusinessObjects;
+using OverLut.Models.DTOs;
 using System;
 using System.Collections.Generic;
 
@@ -12,17 +13,28 @@ public class MessageDAO
     {
         _context = context;
     }
-    public async Task<List<Message>> GetMessagesAsync(Guid channelId, int skip, int take)
+    public async Task<IEnumerable<MessageDTO>> GetMessagesByChannelIDAsync(Guid channelId, int page = 0, int page_size = 20)
     {
-        return await _context.Messages
-            .Include(m => m.Attachments)
-            .Include(m => m.ChannelMember)
-                .ThenInclude(cm => cm.User)
+        int skipMessages = (page - 1) * page_size;
+
+        var allMessages = await _context.Messages
             .Where(m => m.ChannelId == channelId)
             .OrderByDescending(m => m.CreateAt)
-            .Skip(skip)
-            .Take(take)
+            .Skip(skipMessages < 0 ? 0 : skipMessages)
+            .Take(page_size)
+            .AsNoTracking()
             .ToListAsync();
+
+        return allMessages.Select(m => new MessageDTO
+        {
+            MessageId = m.MessageId,
+            ChannelId = m.ChannelId,
+            UserId = m.UserId,
+            MessageType = m.MessageType,
+            Content = m.Content,
+            CreateAt = m.CreateAt
+        });
+
     }
 
     public async Task CreateMessageAsync(Message message)
