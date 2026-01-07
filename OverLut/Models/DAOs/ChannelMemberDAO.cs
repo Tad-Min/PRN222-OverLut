@@ -18,4 +18,16 @@ public partial class ChannelMemberDAO
         await _context.ChannelMembers.AddAsync(channelMember);
         await _context.SaveChangesAsync();
     }
+    // get channel from user id
+    public async Task<List<ChannelMember>> GetChannelsFromUserIdAsync(Guid userId)
+    {
+        return await Task.FromResult(_context.ChannelMembers.Where(cm => cm.UserId == userId).ToList());
+    }
+
+    // get channel from channel name
+    public async Task<List<ChannelMember>> GetMembersFromChannelIdAsync(Guid channelId)
+    {
+        return await Task.FromResult(_context.ChannelMembers.Where(cm => cm.ChannelId == channelId).ToList());
+    }
+
 }
