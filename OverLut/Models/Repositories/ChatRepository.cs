@@ -161,6 +161,14 @@ namespace OverLut.Models.Repositories
         {
             try
             {
+                // Optional validation: ensure user is a member of the channel
+                var memberIds = await _ChannelMemberDAO.GetUserIdsByChannelIdAsync(message.ChannelId);
+                if (!memberIds.Any(m => m.UserId == message.UserId))
+                {
+                    // sender is not a channel member - reject
+                    return false;
+                }
+
                 var messageEntity = new Message
                 {
                     UserId = message.UserId,
@@ -174,30 +182,24 @@ namespace OverLut.Models.Repositories
                 message.MessageId = messageEntity.MessageId;
                 message.CreateAt = messageEntity.CreateAt;
 
-                // 2. Lấy danh sách thành viên trong nhóm để Broadcast
-                // Giả sử bạn viết hàm này trong ChannelMemberDAO
-                var memberIds = await _ChannelMemberDAO.GetMemberIdsByChannelIdAsync(message.ChannelId);
-
                 var jsonResponse = JsonConvert.SerializeObject(message);
 
-                foreach (var memberId in memberIds)
-                {
-                    await ChatWebSocketHandler.SendToUserAsync(memberId.ToString(), jsonResponse);
-                }
+                // Broadcast concurrently to all members
+                var sendTasks = memberIds.Select(memberId => ChatWebSocketHandler.SendToUserAsync(memberId.ToString(), jsonResponse)).ToArray();
+                await Task.WhenAll(sendTasks);
 
                 return true;
             }
             catch
             {
                 return false;
-                
             }
         }
-        public async Task<IEnumerable<MessageDTO>> GetMessagesByChannelIDAsync(Guid channelId, int page = 0, int page_size = 20)
+        public async Task<IEnumerable<MessageDTO>> GetMessagesByChannelIDAsync(Guid channelId, int page = 1, int page_size = 20)
         {
             try
             {
-                return await _messageDAO.GetMessagesByChannelIDAsync(ChannelId, page, page_size);
+                return await _messageDAO.GetMessagesByChannelIDAsync(channelId, page, page_size);
             }
             catch (Exception ex)
             {

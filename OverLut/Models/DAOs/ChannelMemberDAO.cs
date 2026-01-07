@@ -1,4 +1,6 @@
-﻿using OverLut.Models.BusinessObjects;
+﻿using Microsoft.EntityFrameworkCore;
+using OverLut.Models.BusinessObjects;
+using OverLut.Models.DTOs;
 using System;
 using System.Collections.Generic;
 
@@ -22,6 +24,18 @@ public partial class ChannelMemberDAO
     public async Task<List<ChannelMember>> GetChannelsFromUserIdAsync(Guid userId)
     {
         return await Task.FromResult(_context.ChannelMembers.Where(cm => cm.UserId == userId).ToList());
+    }
+
+    // get user from channel id
+    public async Task<IEnumerable<ChannelMemberDTO>> GetUserIdsByChannelIdAsync(Guid channelId)
+    {
+        return await _context.ChannelMembers.Select(cm => new ChannelMemberDTO
+        {
+            ChannelId = channelId,
+            UserId = cm.UserId,
+            Nickname = cm.Nickname,
+            MemberRole = cm.MemberRole,
+        }).Where(cm => cm.ChannelId == channelId).ToListAsync();
     }
 
     // get channel from channel name

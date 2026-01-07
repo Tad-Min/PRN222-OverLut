@@ -22,7 +22,7 @@ namespace OverLut.Models.Repositories
 
         #region Message methods
         Task<bool> SendMessageAsync(MessageDTO message);
-        Task<IEnumerable<MessageDTO>> GetMessagesByChannelIDAsync(Guid ChannelId);
+        Task<IEnumerable<MessageDTO>> GetMessagesByChannelIDAsync(Guid channelId, int page = 1, int page_size = 20);
         Task<bool> DeleteMessageAsync();
         #endregion
         #region Attachment methods
