@@ -1,9 +1,37 @@
+﻿using Microsoft.EntityFrameworkCore;
+using OverLut.Models.BusinessObjects;
+
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
+
+builder.Services.AddDbContext<OverLutContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("ChatConnection")));
+
+builder.Services.AddDbContext<OverLutStorageContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("StorageConnection")));
+builder.Services.AddScoped<OverLutContext>();
+
+
 var app = builder.Build();
+app.UseWebSockets();
+
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path == "/ws")
+    {
+        if (context.WebSockets.IsWebSocketRequest)
+        {
+            using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
+            await ChatWebSocketHandler.Handle(context, webSocket, app.Services);
+        }
+        else { context.Response.StatusCode = StatusCodes.Status400BadRequest; }
+    }
+    else { await next(); }
+});
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
