@@ -19,4 +19,10 @@ public class ChannelDAO
         await _context.SaveChangesAsync();
     }
 
+    // delete channel
+    public async Task DeleteChannelAsync(Channel channel)
+    {
+        _context.Channels.Remove(channel);
+        await _context.SaveChangesAsync();
+    }
 }
