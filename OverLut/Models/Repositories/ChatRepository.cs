@@ -103,7 +103,6 @@ namespace OverLut.Models.Repositories
 
                 var jsonResponse = JsonConvert.SerializeObject(message);
 
-                // 3. Gửi tin nhắn đến từng thành viên online
                 foreach (var memberId in memberIds)
                 {
                     await ChatWebSocketHandler.SendToUserAsync(memberId.ToString(), jsonResponse);
