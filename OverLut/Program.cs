@@ -1,5 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using OverLut.Models.BusinessObjects;
+using OverLut.Models.DAOs;
+using OverLut.Models.Repositories;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,6 +17,19 @@ builder.Services.AddDbContext<OverLutStorageContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("StorageConnection")));
 builder.Services.AddScoped<OverLutContext>();
 
+
+// DAO Scoped
+
+builder.Services.AddScoped<AttachmentDAO>();
+builder.Services.AddScoped<ChannelDAO>();
+builder.Services.AddScoped<ChannelMemberDAO>();
+builder.Services.AddScoped<MessageDAO>();
+builder.Services.AddScoped<ReadReceiptDAO>();
+builder.Services.AddScoped<UserDAO>();
+
+//Repository Scoped
+builder.Services.AddScoped<IChatRepository, ChatRepository>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
 
 var app = builder.Build();
 app.UseWebSockets();

@@ -1,13 +1,32 @@
-﻿using OverLut.Models.DTOs;
+﻿using OverLut.Models.BusinessObjects;
+using OverLut.Models.DAOs;
+using OverLut.Models.DTOs;
 
 namespace OverLut.Models.Repositories
 {
     public class ChatRepository : IChatRepository
     {
-        private readonly IChatRepository _chatRepository;
-        public ChatRepository(IChatRepository chatRepository)
+        private readonly AttachmentDAO _attachmentDAO;
+        private readonly ChannelDAO _channelDAO;
+        private readonly ChannelMemberDAO _ChannelMemberDAO;
+        private readonly MessageDAO _messageDAO;
+        private readonly ReadReceiptDAO _readReceiptDAO;
+        private readonly UserDAO _userDAO;
+        
+        public ChatRepository(
+            AttachmentDAO attachmentDAO,
+            ChannelDAO channelDAO,
+            ChannelMemberDAO channelMemberDAO,
+            MessageDAO messageDAO,
+            ReadReceiptDAO readReceiptDAO,
+            UserDAO userDAO)
         {
-            _chatRepository = chatRepository;
+            _attachmentDAO = attachmentDAO;
+            _channelDAO = channelDAO;
+            _ChannelMemberDAO = channelMemberDAO;
+            _messageDAO = messageDAO;
+            _readReceiptDAO = readReceiptDAO;
+            _userDAO = userDAO;
         }
         #region Channel methods
         public async Task<bool> CreateChannelAsync()
@@ -60,9 +79,23 @@ namespace OverLut.Models.Repositories
         #endregion
 
         #region Message methods
-        public Task<bool> SendMessageAsync()
+        public async Task<bool> SendMessageAsync(MessageDTO message)
         {
-            throw new NotImplementedException();
+            try
+            {
+                await _messageDAO.CreateMessageAsync(new Message
+                {
+                    UserId = message.UserId,
+                    ChannelId = message.ChannelId,
+                    MessageType = message.MessageType,
+                    Content = message.Content,
+                });
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
         public Task<IEnumerable<MessageDTO>> GetMessagesAsync()
         {

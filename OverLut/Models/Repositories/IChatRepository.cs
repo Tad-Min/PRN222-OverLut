@@ -21,7 +21,7 @@ namespace OverLut.Models.Repositories
         #endregion
 
         #region Message methods
-        Task<bool> SendMessageAsync();
+        Task<bool> SendMessageAsync(MessageDTO message);
         Task<IEnumerable<MessageDTO>> GetMessagesAsync();
         Task<bool> DeleteMessageAsync();
         #endregion
