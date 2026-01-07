@@ -15,9 +15,9 @@ namespace OverLut.Models.Repositories
         #endregion
 
         #region member methods
-        Task<bool> AddMemberToChannelAsync();
-        Task<bool> RemoveMemberFromChannelAsync();
-        Task<bool> UdateMemberNickName();
+        Task<bool> AddMemberToChannelAsync(ChannelMemberDTO member);
+        Task<bool> RemoveMemberFromChannelAsync(Guid channelId, Guid userId);
+        Task<bool> UdateMemberNickName(Guid channelId, Guid userId, string? nickname);
         #endregion
 
         #region Message methods
