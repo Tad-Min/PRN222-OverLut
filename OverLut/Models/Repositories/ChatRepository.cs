@@ -1,7 +1,5 @@
 using Newtonsoft.Json;
 using OverLut.Models.BusinessObjects;
-using OverLut.Models.BusinessObjects;
-using OverLut.Models.DAOs;
 using OverLut.Models.DAOs;
 using OverLut.Models.DTOs;
 using System;
@@ -235,7 +233,7 @@ namespace OverLut.Models.Repositories
                 var jsonResponse = JsonConvert.SerializeObject(message);
 
                 // Broadcast concurrently to all members
-                var sendTasks = memberIds.Select(memberId => ChatWebSocketHandler.SendToUserAsync(memberId.ToString(), jsonResponse)).ToArray();
+                var sendTasks = memberIds.Select(memberId => ChatWebSocketHandler.SendToUserAsync(memberId.ToString()??"", jsonResponse)).ToArray();
                 await Task.WhenAll(sendTasks);
 
                 return true;
@@ -251,7 +249,7 @@ namespace OverLut.Models.Repositories
             {
                 return await _messageDAO.GetMessagesByChannelIDAsync(channelId, page, page_size);
             }
-            catch (Exception ex)
+            catch
             {
                 throw;
             }
