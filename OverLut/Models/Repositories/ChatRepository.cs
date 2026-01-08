@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Channel = OverLut.Models.BusinessObjects.Channel;
 
 namespace OverLut.Models.Repositories
 {
