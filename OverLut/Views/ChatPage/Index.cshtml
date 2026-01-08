@@ -1,159 +1,380 @@
 ﻿@{
+    ViewData["Title"] = "Chat";
     Layout = null;
 }
+
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Chat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat App</title>
+
     <style>
-        :root{
-            --bg-top:#e9e9e9;
-            --bg-bottom:#84c1ff;
-            --card:#ffffff;
-            --accent:#9cc3ff;
-            --muted:#58606b;
-        }
-        html,body{height:100%;}
-        body{
-            margin:0;padding:28px;box-sizing:border-box;
-            font-family:Segoe UI, Roboto, "Helvetica Neue", Arial;
-            background:linear-gradient(to bottom,var(--bg-top) 0%, #dfe7f2 40%, var(--bg-bottom) 100%);
-            display:flex;align-items:center;justify-content:center;
+        :root {
+            --primary-blue: #7AA7FF;
+            --bg-top: #D9D9D9;
+            --bg-bottom: #6DB6FF;
+            --white: #FFFFFF;
+            --sidebar-active: #AECBFA;
+            --input-bg: #F0F0F0;
+            --glass-border: rgba(255, 255, 255, 0.5);
         }
 
-        /* outer frame */
-        .frame{
-            width:100%;max-width:920px;border-radius:18px;padding:20px;
-            background:linear-gradient(180deg,#f3f3f3,#ffffff);
-            box-shadow:0 12px 36px rgba(0,0,0,0.22);
-        }
-        .inner{
-            background:var(--bg-top);border-radius:12px;padding:16px;
-            box-shadow:inset 6px 6px 12px rgba(0,0,0,0.06);
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
-        /* layout */
-        .layout{display:grid;grid-template-columns:280px 1fr;gap:18px}
-        .topbar{
-            grid-column:1/3;height:72px;border-radius:12px;
-            background:linear-gradient(180deg,var(--accent),#7fb8ff);
-            display:flex;align-items:center;justify-content:flex-end;padding:12px;
-            box-shadow:inset 6px 6px 12px rgba(0,0,0,0.06);
-        }
-        .topbar .avatar{
-            width:48px;height:48px;border-radius:999px;background:lavenderblush;
-            display:flex;align-items:center;justify-content:center;box-shadow:0 8px 18px rgba(0,0,0,0.08);
-        }
-
-        /* sidebar */
-        .sidebar{
-            background:var(--card);border-radius:12px;padding:12px;
-            box-shadow:0 8px 18px rgba(0,0,0,0.06);min-height:480px;display:flex;flex-direction:column;
-        }
-        .sidebar .head-pill{
-            height:48px;border-radius:24px;background:linear-gradient(180deg,#cfe8ff,#9fc6ff);
-            display:flex;align-items:center;padding:6px 12px;box-shadow:inset 6px 6px 12px rgba(0,0,0,0.05);
-        }
-        .sidebar .contacts{margin-top:14px;overflow:auto;flex:1}
-        .contact{
-            display:flex;align-items:center;gap:12px;padding:8px;border-radius:12px;
-            background:linear-gradient(180deg,#dff0ff,#b9dbff);box-shadow:inset 4px 4px 10px rgba(0,0,0,0.04);
-            margin-bottom:10px;
+        body {
+            /* Tối ưu cho Windows: Sử dụng Segoe UI */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(to bottom, var(--bg-top) 0%, #dfe7f2 40%, var(--bg-bottom) 100%);
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
         }
 
-        /* chat panel */
-        .chat-panel{
-            background:var(--card);border-radius:12px;padding:12px;display:flex;flex-direction:column;
-            box-shadow:0 8px 18px rgba(0,0,0,0.06);min-height:480px;
+        /* --- MAIN LAYOUT --- */
+        .main-container {
+            width: 75%;
+            height: 75%;
+            max-width: 1000px;
+            background-color: transparent;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            transition: transform 0.3s ease; /* Hiệu ứng đẩy nhẹ khi mở menu (optional) */
         }
-        .messages{flex:1;padding:10px 12px;overflow:auto;position:relative}
 
-        .bubble{
-            display:inline-block;padding:10px 14px;background:#efefef;border-radius:16px;margin:10px;
-            max-width:70%;box-shadow:inset 4px 4px 8px rgba(0,0,0,0.03);
+        /* --- HEADER --- */
+        .header-bar {
+            background-color: var(--primary-blue);
+            height: 100px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between; /* Đẩy text sang trái, avatar sang phải */
+            padding: 0 30px;
+            box-shadow: 0 4px 15px rgba(122, 167, 255, 0.4);
+            flex-shrink: 0;
+            position: relative;
+            z-index: 10;
         }
-        .bubble.me{margin-left:auto;background:#fff;border-radius:16px 16px 6px 16px}
 
-        /* center placeholder card */
-        .placeholder-card{display:flex;justify-content:center;margin-top:60px}
-        .placeholder-card .card{width:220px;height:140px;border-radius:12px;background:#fff;box-shadow:0 10px 24px rgba(0,0,0,0.08)}
-
-        /* composer */
-        .composer{display:flex;align-items:center;gap:12px;padding-top:12px}
-        .compose-btn{
-            width:56px;height:56px;border-radius:999px;background:var(--accent);display:flex;
-            align-items:center;justify-content:center;font-weight:800;color:#073;border:0;cursor:pointer;
-            box-shadow:0 10px 20px rgba(0,0,0,0.12);
+        .header-title {
+            color: white;
+            font-weight: 600;
+            font-size: 1.2rem;
+            letter-spacing: 1px;
+            opacity: 0.9;
         }
-        .compose-input{
-            flex:1;background:#f1f1f1;border-radius:999px;padding:14px 18px;
-            display:flex;align-items:center;gap:12px;box-shadow:inset 6px 6px 12px rgba(0,0,0,0.04);
-        }
-        .compose-input .placeholder{color:var(--muted);font-weight:700}
 
-        /* responsive - escape Razor parsing for @@media */
-        @@media (max-width:860px){
-            .layout{grid-template-columns:1fr}
-            .topbar{justify-content:flex-start}
-            .sidebar{order:2}
-            .chat-panel{order:1}
+        .avatar-circle {
+            width: 50px;
+            height: 50px;
+            background-color: #E6E0F8;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 2px solid #5A4AD1;
+            color: #5A4AD1;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            z-index: 20; /* Luôn nằm trên để click được */
+        }
+
+            .avatar-circle:hover {
+                transform: scale(1.05);
+                box-shadow: 0 0 15px rgba(90, 74, 209, 0.4);
+            }
+
+        /* --- CONTENT AREA --- */
+        .content-area {
+            display: flex;
+            flex: 1;
+            gap: 20px;
+            min-height: 0;
+            position: relative;
+            z-index: 5;
+        }
+
+        /* --- LEFT SIDEBAR (USER LIST) --- */
+        .sidebar {
+            width: 200px;
+            background-color: var(--white);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .user-item-active {
+            background-color: var(--sidebar-active);
+            padding: 10px 20px;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            width: 100%;
+            box-shadow: 0 4px 5px rgba(0,0,0,0.1);
+        }
+
+        /* --- RIGHT CHAT BOX --- */
+        .chat-box {
+            flex: 1;
+            background-color: var(--white);
+            border-radius: 20px;
+            position: relative;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .messages-display {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #ccc transparent;
+        }
+
+        /* --- INPUT AREA --- */
+        .input-wrapper {
+            padding: 20px;
+            background-color: var(--white);
+        }
+
+        .input-container {
+            width: 100%;
+            height: 70px;
+            background-color: var(--input-bg);
+            border-radius: 35px;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .btn-plus {
+            width: 50px;
+            height: 50px;
+            background-color: var(--sidebar-active);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            margin-left: 5px;
+            transition: background-color 0.2s;
+        }
+
+            .btn-plus:hover {
+                background-color: #AECCFF;
+            }
+
+        .chat-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 0 20px;
+            font-size: 15px;
+            font-weight: 600;
+            color: #333;
+            outline: none;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        /* --- SETTINGS SLIDE BAR (MENU TRƯỢT) --- */
+        .settings-sidebar {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            bottom: 20px;
+            width: 280px;
+            /* Gradient giống hình ảnh mẫu: Xám nhạt -> Xanh dương */
+            background: linear-gradient(180deg, #EAEAEA 0%, #D4D4D4 30%, #89BAFA 100%);
+            border-radius: 25px;
+            box-shadow: -10px 0 30px rgba(0,0,0,0.2);
+            z-index: 100;
+            padding: 30px 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            /* Animation Slide */
+            transform: translateX(120%); /* Mặc định ẩn sang phải */
+            transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+            .settings-sidebar.active {
+                transform: translateX(0); /* Trượt vào */
+            }
+
+        /* Nút trong menu settings */
+        .menu-btn {
+            background-color: rgba(255, 255, 255, 0.85);
+            height: 60px;
+            border-radius: 30px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center; /* Canh giữa nội dung */
+            padding: 0 20px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            transition: all 0.2s;
+            font-weight: 600;
+            color: #555;
+            text-decoration: none; /* Nếu dùng thẻ a */
+            border: none;
+            width: 100%;
+        }
+
+            .menu-btn:hover {
+                background-color: #FFFFFF;
+                transform: translateY(-2px);
+                box-shadow: 0 6px 10px rgba(0,0,0,0.1);
+            }
+
+            .menu-btn.logout {
+                color: #444;
+                gap: 10px; /* Khoảng cách giữa icon và text */
+            }
+
+            .menu-btn.back {
+                background-color: rgba(255, 255, 255, 0.9);
+                color: #555;
+                margin-top: auto; /* Đẩy xuống đáy */
+                margin-bottom: 0;
+            }
+
+        /* Overlay để click ra ngoài thì đóng menu */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.3);
+            z-index: 90;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+
+            .overlay.active {
+                opacity: 1;
+                visibility: visible;
+            }
+
+        /* Mobile Responsive */
+        @@media (max-width: 768px) {
+            .sidebar {
+                display: none;
+            }
+
+            .header-bar {
+                padding: 0 15px;
+            }
+
+            .main-container {
+                width: 95%;
+                height: 95%;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="frame">
-        <div class="inner">
-            <div class="topbar">
-                <div class="avatar" title="You">
-                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 12a4 4 0 100-8 4 4 0 000 8z" stroke="#3b3b3b" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M20 21v-1a4 4 0 00-4-4H8a4 4 0 00-4 4v1" stroke="#3b3b3b" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
+
+    <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
+
+    <div class="settings-sidebar" id="settingsSidebar">
+        <div class="menu-group">
+            <div class="menu-btn"></div>
+            <div class="menu-btn"></div>
+            <div class="menu-btn"></div>
+
+            <button class="menu-btn logout" onclick="alert('Đăng xuất thành công!')">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+                Logout
+            </button>
+        </div>
+
+        <button class="menu-btn back" onclick="toggleSidebar()">
+            <svg style="margin-right: 10px" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Back
+        </button>
+    </div>
+
+    <div class="main-container">
+
+        <div class="header-bar">
+            <div class="header-title"></div>
+
+            <div class="avatar-circle" onclick="toggleSidebar()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+            </div>
+        </div>
+
+        <div class="content-area">
+            <div class="sidebar">
+                <div class="user-item-active">
+                    <div class="avatar-circle" style="width: 36px; height: 36px; border: 1.5px solid #5A4AD1;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                    </div>
                 </div>
             </div>
 
-            <div class="layout">
-                <aside class="sidebar">
-                    <div class="head-pill">
-                        <div style="width:44px;height:44px;border-radius:999px;background:lavender;padding:6px;box-shadow:inset 6px 6px 10px rgba(0,0,0,0.06)"></div>
-                    </div>
+            <div class="chat-box">
+                <div class="messages-display" id="messageList">
+                </div>
 
-                    <div class="contacts">
-                        <div class="contact">
-                            <div style="width:44px;height:44px;border-radius:999px;background:lavenderblush"></div>
-                            <div style="font-weight:700;color:#234">Contact A</div>
+                <div class="input-wrapper">
+                    <div class="input-container">
+                        <div class="btn-plus">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
                         </div>
-                        <!-- add more .contact items dynamically as needed -->
+                        <input type="text" class="chat-input" placeholder="Enter..........................." />
                     </div>
-                </aside>
-
-                <main class="chat-panel">
-                    <div class="messages" id="messages">
-                        <div class="bubble">Hello</div>
-                        <div class="bubble me">Welcome</div>
-
-                        <div class="placeholder-card">
-                            <div class="card"></div>
-                        </div>
-                    </div>
-
-                    <div class="composer">
-                        <button class="compose-btn" title="Add">+</button>
-                        <div class="compose-input" role="textbox" contenteditable="true" aria-label="Message input">
-                            <div class="placeholder">Enter.............................</div>
-                        </div>
-                    </div>
-                </main>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        // optional: keep messages scrolled to bottom when testing
-        const msgs = document.getElementById('messages');
-        if (msgs) { msgs.scrollTop = msgs.scrollHeight; }
+        function toggleSidebar() {
+            const sidebar = document.getElementById('settingsSidebar');
+            const overlay = document.getElementById('overlay');
+
+            // Toggle class 'active' để kích hoạt CSS transform
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+        }
     </script>
+
 </body>
 </html>
