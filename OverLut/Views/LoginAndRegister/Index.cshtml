@@ -1,5 +1,76 @@
-﻿@*
-    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-*@
-@{
+﻿@{
+    ViewData["Title"] = "Login / Register";
 }
+
+<div class="container mt-4">
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success" role="alert">
+            @TempData["Success"]
+        </div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger" role="alert">
+            @TempData["Error"]
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Login</h5>
+                    <form asp-controller="LoginAndRegister" asp-action="Login" method="post" novalidate>
+                        @Html.AntiForgeryToken()
+                        <div class="mb-3">
+                            <label for="loginUserName" class="form-label">User name</label>
+                            <input type="text" id="loginUserName" name="UserName" class="form-control" required />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="loginPassword" class="form-label">Password</label>
+                            <input type="password" id="loginPassword" name="Password" class="form-control" required />
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100">Login</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Register</h5>
+                    <form asp-controller="LoginAndRegister" asp-action="Register" method="post" novalidate>
+                        @Html.AntiForgeryToken()
+                        <div class="mb-3">
+                            <label for="regUserName" class="form-label">User name</label>
+                            <input type="text" id="regUserName" name="UserName" class="form-control" required minlength="3" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="regPassword" class="form-label">Password</label>
+                            <input type="password" id="regPassword" name="Password" class="form-control" required minlength="6" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="regName" class="form-label">Full name</label>
+                            <input type="text" id="regName" name="Name" class="form-control" required />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="regEmail" class="form-label">Email</label>
+                            <input type="email" id="regEmail" name="Email" class="form-control" />
+                        </div>
+
+                        <input type="hidden" name="RoleId" value="0" />
+
+                        <button type="submit" class="btn btn-success w-100">Register</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
