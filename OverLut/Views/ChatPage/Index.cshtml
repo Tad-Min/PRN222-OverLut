@@ -1,0 +1,159 @@
+﻿@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chat</title>
+    <style>
+        :root{
+            --bg-top:#e9e9e9;
+            --bg-bottom:#84c1ff;
+            --card:#ffffff;
+            --accent:#9cc3ff;
+            --muted:#58606b;
+        }
+        html,body{height:100%;}
+        body{
+            margin:0;padding:28px;box-sizing:border-box;
+            font-family:Segoe UI, Roboto, "Helvetica Neue", Arial;
+            background:linear-gradient(to bottom,var(--bg-top) 0%, #dfe7f2 40%, var(--bg-bottom) 100%);
+            display:flex;align-items:center;justify-content:center;
+        }
+
+        /* outer frame */
+        .frame{
+            width:100%;max-width:920px;border-radius:18px;padding:20px;
+            background:linear-gradient(180deg,#f3f3f3,#ffffff);
+            box-shadow:0 12px 36px rgba(0,0,0,0.22);
+        }
+        .inner{
+            background:var(--bg-top);border-radius:12px;padding:16px;
+            box-shadow:inset 6px 6px 12px rgba(0,0,0,0.06);
+        }
+
+        /* layout */
+        .layout{display:grid;grid-template-columns:280px 1fr;gap:18px}
+        .topbar{
+            grid-column:1/3;height:72px;border-radius:12px;
+            background:linear-gradient(180deg,var(--accent),#7fb8ff);
+            display:flex;align-items:center;justify-content:flex-end;padding:12px;
+            box-shadow:inset 6px 6px 12px rgba(0,0,0,0.06);
+        }
+        .topbar .avatar{
+            width:48px;height:48px;border-radius:999px;background:lavenderblush;
+            display:flex;align-items:center;justify-content:center;box-shadow:0 8px 18px rgba(0,0,0,0.08);
+        }
+
+        /* sidebar */
+        .sidebar{
+            background:var(--card);border-radius:12px;padding:12px;
+            box-shadow:0 8px 18px rgba(0,0,0,0.06);min-height:480px;display:flex;flex-direction:column;
+        }
+        .sidebar .head-pill{
+            height:48px;border-radius:24px;background:linear-gradient(180deg,#cfe8ff,#9fc6ff);
+            display:flex;align-items:center;padding:6px 12px;box-shadow:inset 6px 6px 12px rgba(0,0,0,0.05);
+        }
+        .sidebar .contacts{margin-top:14px;overflow:auto;flex:1}
+        .contact{
+            display:flex;align-items:center;gap:12px;padding:8px;border-radius:12px;
+            background:linear-gradient(180deg,#dff0ff,#b9dbff);box-shadow:inset 4px 4px 10px rgba(0,0,0,0.04);
+            margin-bottom:10px;
+        }
+
+        /* chat panel */
+        .chat-panel{
+            background:var(--card);border-radius:12px;padding:12px;display:flex;flex-direction:column;
+            box-shadow:0 8px 18px rgba(0,0,0,0.06);min-height:480px;
+        }
+        .messages{flex:1;padding:10px 12px;overflow:auto;position:relative}
+
+        .bubble{
+            display:inline-block;padding:10px 14px;background:#efefef;border-radius:16px;margin:10px;
+            max-width:70%;box-shadow:inset 4px 4px 8px rgba(0,0,0,0.03);
+        }
+        .bubble.me{margin-left:auto;background:#fff;border-radius:16px 16px 6px 16px}
+
+        /* center placeholder card */
+        .placeholder-card{display:flex;justify-content:center;margin-top:60px}
+        .placeholder-card .card{width:220px;height:140px;border-radius:12px;background:#fff;box-shadow:0 10px 24px rgba(0,0,0,0.08)}
+
+        /* composer */
+        .composer{display:flex;align-items:center;gap:12px;padding-top:12px}
+        .compose-btn{
+            width:56px;height:56px;border-radius:999px;background:var(--accent);display:flex;
+            align-items:center;justify-content:center;font-weight:800;color:#073;border:0;cursor:pointer;
+            box-shadow:0 10px 20px rgba(0,0,0,0.12);
+        }
+        .compose-input{
+            flex:1;background:#f1f1f1;border-radius:999px;padding:14px 18px;
+            display:flex;align-items:center;gap:12px;box-shadow:inset 6px 6px 12px rgba(0,0,0,0.04);
+        }
+        .compose-input .placeholder{color:var(--muted);font-weight:700}
+
+        /* responsive - escape Razor parsing for @@media */
+        @@media (max-width:860px){
+            .layout{grid-template-columns:1fr}
+            .topbar{justify-content:flex-start}
+            .sidebar{order:2}
+            .chat-panel{order:1}
+        }
+    </style>
+</head>
+<body>
+    <div class="frame">
+        <div class="inner">
+            <div class="topbar">
+                <div class="avatar" title="You">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 12a4 4 0 100-8 4 4 0 000 8z" stroke="#3b3b3b" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M20 21v-1a4 4 0 00-4-4H8a4 4 0 00-4 4v1" stroke="#3b3b3b" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+            </div>
+
+            <div class="layout">
+                <aside class="sidebar">
+                    <div class="head-pill">
+                        <div style="width:44px;height:44px;border-radius:999px;background:lavender;padding:6px;box-shadow:inset 6px 6px 10px rgba(0,0,0,0.06)"></div>
+                    </div>
+
+                    <div class="contacts">
+                        <div class="contact">
+                            <div style="width:44px;height:44px;border-radius:999px;background:lavenderblush"></div>
+                            <div style="font-weight:700;color:#234">Contact A</div>
+                        </div>
+                        <!-- add more .contact items dynamically as needed -->
+                    </div>
+                </aside>
+
+                <main class="chat-panel">
+                    <div class="messages" id="messages">
+                        <div class="bubble">Hello</div>
+                        <div class="bubble me">Welcome</div>
+
+                        <div class="placeholder-card">
+                            <div class="card"></div>
+                        </div>
+                    </div>
+
+                    <div class="composer">
+                        <button class="compose-btn" title="Add">+</button>
+                        <div class="compose-input" role="textbox" contenteditable="true" aria-label="Message input">
+                            <div class="placeholder">Enter.............................</div>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // optional: keep messages scrolled to bottom when testing
+        const msgs = document.getElementById('messages');
+        if (msgs) { msgs.scrollTop = msgs.scrollHeight; }
+    </script>
+</body>
+</html>
