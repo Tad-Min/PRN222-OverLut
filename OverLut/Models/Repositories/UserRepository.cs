@@ -38,7 +38,7 @@ namespace OverLut.Models.Repositories
         {
             throw new NotImplementedException();
         }
-        public async Task<bool> LoginUser(string username, string password)
+        public async Task<Guid?> LoginUser(string username, string password)
         {
             try
             {
@@ -46,7 +46,7 @@ namespace OverLut.Models.Repositories
             }
             catch
             {
-                return false;
+                return null;
             }
         }
         public async Task<UserDTO> UpdateUserAsync()

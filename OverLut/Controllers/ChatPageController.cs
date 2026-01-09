@@ -1,83 +1,43 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using OverLut.Models.Repositories;
+using System.Threading.Tasks;
 
 namespace OverLut.Controllers
 {
     public class ChatPageController : Controller
     {
+        private readonly IChatRepository _chatRepository;
+        public ChatPageController(IChatRepository chatRepository)
+        {
+            _chatRepository = chatRepository;
+        }
         // GET: ChatPageController
-        public ActionResult Index()
+        [Authorize]
+        public async Task<ActionResult> Index()
         {
-            return View();
+            if(Guid.TryParse(User.FindFirst("UserId")?.Value, out Guid userGuid))
+            {
+                var lsChannel = await _chatRepository.GetAllChannelByUserIDAsync(userGuid);
+                return View(lsChannel);
+            }
+            else
+            {
+                return Unauthorized();
+            }
         }
-
-        // GET: ChatPageController/Details/5
-        public ActionResult Details(int id)
-        {
-            return View();
-        }
-
-        // GET: ChatPageController/Create
-        public ActionResult Create()
-        {
-            return View();
-        }
-
-        // POST: ChatPageController/Create
+        // GET: ChatPage/logout
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        public ActionResult Create(IFormCollection collection)
+        public async Task<IActionResult> Logout()
         {
-            try
-            {
-                return RedirectToAction(nameof(Index));
-            }
-            catch
-            {
-                return View();
-            }
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+
+            return RedirectToAction("Index", "Login");
         }
 
-        // GET: ChatPageController/Edit/5
-        public ActionResult Edit(int id)
-        {
-            return View();
-        }
 
-        // POST: ChatPageController/Edit/5
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public ActionResult Edit(int id, IFormCollection collection)
-        {
-            try
-            {
-                return RedirectToAction(nameof(Index));
-            }
-            catch
-            {
-                return View();
-            }
-        }
-
-        // GET: ChatPageController/Delete/5
-        public ActionResult Delete(int id)
-        {
-            return View();
-        }
-
-        // POST: ChatPageController/Delete/5
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public ActionResult Delete(int id, IFormCollection collection)
-        {
-            try
-            {
-                return RedirectToAction(nameof(Index));
-            }
-            catch
-            {
-                return View();
-            }
-        }
     }
 }

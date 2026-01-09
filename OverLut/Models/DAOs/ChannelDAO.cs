@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using OverLut.Models.BusinessObjects;
+using OverLut.Models.DTOs;
 using System;
 using System.Collections.Generic;
 
@@ -51,5 +52,20 @@ public class ChannelDAO
     {
         _context.Channels.Update(channel);
         await _context.SaveChangesAsync();
+    }
+
+    public async Task<IEnumerable<ChannelDTO>?> GetAllChannelsByUserIDAsync(Guid userid)
+    {
+        return await _context.ChannelMembers
+            .Include(cm => cm.Channel)
+            .Where(cm => cm.UserId == userid)
+            .Select(cm => new ChannelDTO
+            {
+                ChannelId = cm.ChannelId,
+                ChannelType = cm.Channel.ChannelType,
+                ChannelName = cm.Channel.ChannelName,
+                DefaultPermissions = cm.Channel.DefaultPermissions,
+                CreateAt = cm.Channel.CreateAt,
+            }).ToListAsync();
     }
 }

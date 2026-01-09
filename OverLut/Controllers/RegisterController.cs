@@ -1,10 +1,18 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using OverLut.Models.DTOs;
+using OverLut.Models.Repositories;
 
 namespace OverLut.Controllers
 {
     public class RegisterController : Controller
     {
+        private readonly IUserRepository _userRepository;
+        public RegisterController(IUserRepository userRepository)
+        {
+            _userRepository = userRepository;
+        }
+
         // GET: RegisterController
         public ActionResult Index()
         {
@@ -20,16 +28,38 @@ namespace OverLut.Controllers
         // GET: RegisterController/Create
         public ActionResult Create()
         {
+
             return View();
         }
 
         // POST: RegisterController/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Create(IFormCollection collection)
+        public async Task<ActionResult> Create(IFormCollection collection)
         {
             try
             {
+                var username = collection["username"];
+                var password = collection["password"];
+                var fullname = collection["FullName"];
+                var connfirmPassword = collection["confirmPassword"];
+                if (password != connfirmPassword)
+                {
+                    TempData["HandleError"] = "Password và confirm password không khớp";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                if (await _userRepository.CreateUserAsync(new UserDTO
+                {
+                    UserName = username,
+                    Name = fullname,
+                    Password = password,
+                }))
+                {
+                    TempData["SuccessMessage"] = "Chúc mừng! Bạn đã tạo tài khoản thành công.";
+                    return RedirectToAction(nameof(Index));
+                }
+                TempData["SuccessMessage"] = "Tạo tài khoản không thành công";
                 return RedirectToAction(nameof(Index));
             }
             catch

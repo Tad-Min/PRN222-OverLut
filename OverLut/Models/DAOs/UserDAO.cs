@@ -24,11 +24,10 @@ public class UserDAO
         return await _context.Users.FindAsync(userId);
     }
 
-    public async Task<bool> LoginUserAsync(string username, string password)
+    public async Task<Guid?> LoginUserAsync(string username, string password)
     {
         var user = await _context.Users
             .FirstOrDefaultAsync(u => u.UserName == username && u.Password == password);
-        return user != null;
+        return user?.UserId;
     }
-
 }

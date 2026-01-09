@@ -54,19 +54,9 @@ namespace OverLut.Models.Repositories
                 return false;
             }
         }
-        public async Task<IEnumerable<ChannelDTO>> GetAllChannelByUserIDAsync(Guid userID)
+        public async Task<IEnumerable<ChannelDTO>?> GetAllChannelByUserIDAsync(Guid userID)
         {
-            var channelsMembers = await _ChannelMemberDAO.GetChannelsFromUserIdAsync(userID);
-
-            var channels = channelsMembers.Select(cm => new ChannelDTO
-            {
-                ChannelId = cm.Channel.ChannelId,
-                ChannelType = cm.Channel.ChannelType,
-                ChannelName = cm.Channel.ChannelName,
-                DefaultPermissions = cm.Channel.DefaultPermissions,
-                CreateAt = cm.Channel.CreateAt,
-            }).ToList();
-            return channels;
+            return await _channelDAO.GetAllChannelsByUserIDAsync(userID);
         }
         public async Task<IEnumerable<ChannelDTO>> GetAllChannelByChannelName(string channelName)
         {

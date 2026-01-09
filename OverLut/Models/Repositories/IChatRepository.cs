@@ -7,7 +7,7 @@ namespace OverLut.Models.Repositories
     {
         #region Channel methods
         Task<bool> CreateChannelAsync();
-        Task<IEnumerable<ChannelDTO>> GetAllChannelByUserIDAsync(Guid userID);
+        Task<IEnumerable<ChannelDTO>?> GetAllChannelByUserIDAsync(Guid userID);
         Task<IEnumerable<ChannelDTO>> GetAllChannelByChannelName(string ChannelName);
         Task<ChannelDTO> EditChannelAsync(Guid channelId);
         Task<bool> UpdateChannelAsync(ChannelDTO channel);
