@@ -201,7 +201,7 @@ namespace OverLut.Models.Repositories
             {
                 // Optional validation: ensure user is a member of the channel
                 var memberIds = await _ChannelMemberDAO.GetUserIdsByChannelIdAsync(message.ChannelId);
-                if (!memberIds.Any(m => m.UserId == message.UserId))
+                if (memberIds == null || !memberIds.Any(m => m.UserId == message.UserId))
                 {
                     // sender is not a channel member - reject
                     return false;
@@ -223,8 +223,16 @@ namespace OverLut.Models.Repositories
                 var jsonResponse = JsonConvert.SerializeObject(message);
 
                 // Broadcast concurrently to all members
-                var sendTasks = memberIds.Select(memberId => ChatWebSocketHandler.SendToUserAsync(memberId.ToString()??"", jsonResponse)).ToArray();
-                await Task.WhenAll(sendTasks);
+                // FIX: use member.UserId.ToString() instead of member.ToString()
+                var sendTasks = memberIds
+                    .Where(m => m != null)
+                    .Select(m => ChatWebSocketHandler.SendToUserAsync(m.UserId.ToString(), jsonResponse))
+                    .ToArray();
+
+                if (sendTasks.Length > 0)
+                {
+                    await Task.WhenAll(sendTasks);
+                }
 
                 return true;
             }

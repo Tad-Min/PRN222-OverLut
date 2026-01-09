@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using System.Text;
 using System.IO;
+using Microsoft.Extensions.DependencyInjection;
 
 public class ChatWebSocketHandler
 {
@@ -15,8 +16,23 @@ public class ChatWebSocketHandler
 
     public static async Task Handle(HttpContext context, WebSocket webSocket, IServiceProvider services)
     {
-        var userId = context.Request.Query["userId"].ToString();
-        if (string.IsNullOrEmpty(userId)) return;
+        // Prefer authenticated userId from claims; fall back to query parameter if necessary.
+        var userId = context.User?.FindFirst("UserId")?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            userId = context.Request.Query["userId"].ToString();
+        }
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            // No user id - close connection politely
+            try
+            {
+                await webSocket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Missing userId", CancellationToken.None);
+            }
+            catch { }
+            return;
+        }
 
         var connectionId = Guid.NewGuid().ToString();
 
@@ -75,8 +91,12 @@ public class ChatWebSocketHandler
                         continue;
                     }
 
-                    // Override sender id with authenticated query parameter to prevent spoofing
-                    if (Guid.TryParse(userId, out var parsedUserId))
+                    // Override sender id with authenticated claim (if available) to prevent spoofing
+                    if (Guid.TryParse(context.User?.FindFirst("UserId")?.Value ?? userId, out var parsedUserId))
+                    {
+                        msgDto.UserId = parsedUserId;
+                    }
+                    else if (Guid.TryParse(userId, out parsedUserId))
                     {
                         msgDto.UserId = parsedUserId;
                     }
@@ -86,6 +106,7 @@ public class ChatWebSocketHandler
                         continue;
                     }
 
+                    // Persist + broadcast using repository
                     using (var scope = services.CreateScope())
                     {
                         var chatRepo = scope.ServiceProvider.GetRequiredService<IChatRepository>();

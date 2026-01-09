@@ -30,7 +30,7 @@
         }
 
         body {
-            /* Tối ưu cho Windows: Sử dụng Segoe UI */
+            /* Tối ưu cho Windows: Sử sử dụng Segoe UI */
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(to bottom, var(--bg-top) 0%, #dfe7f2 40%, var(--bg-bottom) 100%);
             height: 100vh;
@@ -414,10 +414,7 @@
                             </div>
                         </div>
                     </button>
-                        
-                    
                 }
-                
             </div>
 
             <div id="chatbox" class="chat-box">
@@ -441,7 +438,7 @@
                                 <line x1="5" y1="12" x2="19" y2="12"></line>
                             </svg>
                         </div>
-                        <input type="text" class="chat-input" placeholder="Enter..........................." />
+                        <input id="chatInput" type="text" class="chat-input" placeholder="Enter......." onkeypress="handleKeyPress(event)" />
                     </div>
                 </div>
             </div>
@@ -449,36 +446,237 @@
     </div>
 
     <script>
+        // Use single quotes around the Razor output so embedded double-quotes in the Razor call are valid.
+        const currentUserId = '@User.FindFirst("UserId")?.Value';
+        let selectedChannelId = null;
+
+        // WebSocket state
+        const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
+        let socket = null;
+        let socketOpen = false;
+        let reconnectTimer = null;
+
         function toggleSidebar() {
             const sidebar = document.getElementById('settingsSidebar');
             const overlay = document.getElementById('overlay');
 
-            // Toggle class 'active' để kích hoạt CSS transform
             sidebar.classList.toggle('active');
             overlay.classList.toggle('active');
         }
-        function loadChat(id){
-            fetch(`/ChatGroup/GetMessage/${id}`)
-            .then(data => {
-                document.getElementById("chatbox").innerHTML = `
-                <div id="chatbox" class="chat-box">
-                <div class="messages-display" id="messageList">
-                </div>
-                
-                <div class="input-wrapper">
-                    <div class="input-container">
-                        <div class="btn-plus">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                <line x1="12" y1="5" x2="12" y2="19"></line>
-                                <line x1="5" y1="12" x2="19" y2="12"></line>
-                            </svg>
-                        </div>
-                        <input type="text" class="chat-input" placeholder="Enter..........................." />
-                    </div>
-                </div>
-            </div>`
+
+        // Connect websocket and handle incoming messages
+        function connectSocket() {
+            if (socketOpen || (socket && socket.readyState === WebSocket.OPEN)) return;
+
+            // Include userId as a query fallback so server can identify connection even if auth isn't populated
+            const userQuery = currentUserId ? `?userId=${encodeURIComponent(currentUserId)}` : '';
+            const url = `${wsProtocol}://${location.host}/ws${userQuery}`;
+            socket = new WebSocket(url);
+
+            socket.addEventListener('open', () => {
+                socketOpen = true;
+                console.info('WebSocket connected');
+                if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+            });
+
+            socket.addEventListener('close', () => {
+                socketOpen = false;
+                console.info('WebSocket closed, will reconnect in 2s');
+                scheduleReconnect();
+            });
+
+            socket.addEventListener('error', (e) => {
+                console.error('WebSocket error', e);
+                // error will be followed by close
+            });
+
+            socket.addEventListener('message', (ev) => {
+                try {
+                    const msg = JSON.parse(ev.data);
+                    // Support PascalCase and camelCase JSON payloads
+                    const channelId = msg.ChannelId ?? msg.channelId;
+                    if (!channelId) return;
+
+                    // Remove optimistic temp message with the same content (if any)
+                    const content = msg.Content ?? msg.content ?? '';
+                    removeTempIfMatches(content);
+
+                    // Only show messages for currently selected channel
+                    if (String(channelId) === String(selectedChannelId)) {
+                        appendMessage(msg);
+                    } else {
+                        // Optionally show notification for other channels
+                        console.info('Incoming message for other channel', channelId);
+                    }
+                } catch (ex) {
+                    console.error('Invalid WS message', ex);
+                }
             });
         }
+
+        function scheduleReconnect() {
+            if (reconnectTimer) return;
+            reconnectTimer = setTimeout(() => {
+                connectSocket();
+            }, 2000);
+        }
+
+        // Append single message DTO to DOM
+        function appendMessage(msg) {
+            const messageList = document.getElementById("messageList");
+            const userId = msg.UserId ?? msg.userId;
+            const content = msg.Content ?? msg.content ?? '';
+            const isSentByMe = String(userId) === String(currentUserId);
+            const messageClass = isSentByMe ? "message-sent" : "message-received";
+
+            const msgHtml = `
+                <div class="message-row ${messageClass}">
+                    <div class="bubble">${escapeHtml(String(content))}</div>
+                    <div class="status-dot"></div>
+                </div>
+            `;
+            messageList.insertAdjacentHTML('beforeend', msgHtml);
+            messageList.scrollTop = messageList.scrollHeight;
+        }
+
+        // Append optimistic (temporary) message so user sees instant feedback
+        function appendTempMessage(tempId, content) {
+            const messageList = document.getElementById("messageList");
+            const messageClass = "message-sent";
+            const safe = escapeHtml(String(content));
+            const html = `
+                <div class="message-row ${messageClass}" data-temp-id="${tempId}" data-temp-content="${safe}">
+                    <div class="bubble">${safe}</div>
+                    <div class="status-dot"></div>
+                </div>
+            `;
+            messageList.insertAdjacentHTML('beforeend', html);
+            messageList.scrollTop = messageList.scrollHeight;
+        }
+
+        // Remove a single temp message matching content (called when server broadcast arrives)
+        function removeTempIfMatches(content) {
+            try {
+                const messageList = document.getElementById("messageList");
+                const escaped = escapeHtml(String(content));
+                const temp = messageList.querySelector(`[data-temp-content="${escaped}"]`);
+                if (temp) temp.remove();
+            } catch (ex) {
+                // ignore selector issues
+            }
+        }
+
+        // Load historical messages for channel (HTTP)
+        function loadChat(id) {
+            selectedChannelId = id;
+
+            fetch(`/ChatPage/GetMessage/${id}`)
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.json();
+                })
+                .then(data => {
+                    const messageList = document.getElementById("messageList");
+                    messageList.innerHTML = "";
+
+                    // handle either direct array or object wrapper
+                    const payload = Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : []);
+
+                    if (!Array.isArray(payload)) {
+                        console.warn('GetMessage returned unexpected payload:', data);
+                        return;
+                    }
+
+                    payload.forEach(msg => appendMessage(msg));
+                })
+                .catch(err => console.error("Lỗi khi tải tin nhắn:", err));
+        }
+
+        // Simple HTML escaping to avoid XSS when inserting server content into the DOM
+        function escapeHtml(unsafe) {
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === "Enter") {
+                sendMessage();
+            }
+        }
+
+        // Send message: prefer WebSocket, fallback to HTTP POST
+        function sendMessage() {
+            const input = document.getElementById("chatInput");
+            if (!input) return;
+            const content = input.value.trim();
+
+            if (!selectedChannelId) {
+                alert("Vui lòng chọn một phòng chat!");
+                return;
+            }
+
+            if (content === "") return;
+
+            const payload = {
+                ChannelId: selectedChannelId,
+                Content: content,
+                MessageType: 0
+            };
+
+            // optimistic UI: append temp message immediately when sending via WS
+            if (socketOpen && socket && socket.readyState === WebSocket.OPEN) {
+                const tempId = 'tmp-' + Date.now() + '-' + Math.random().toString(36).slice(2,8);
+                appendTempMessage(tempId, payload.Content);
+
+                try {
+                    socket.send(JSON.stringify(payload));
+                    // clear input and wait for server to broadcast the definitive message
+                    input.value = "";
+                } catch (ex) {
+                    console.error('WS send failed, falling back to HTTP', ex);
+                    // remove optimistic message if WS send fails
+                    removeTempIfMatches(payload.Content);
+                    postMessageHttp(payload, input);
+                }
+            } else {
+                // no WS -> use HTTP and reload messages
+                postMessageHttp(payload, input);
+            }
+        }
+
+        function postMessageHttp(payload, inputElement) {
+            fetch('/ChatPage/SendMessage', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ channelId: payload.ChannelId, content: payload.Content })
+            })
+            .then(async response => {
+                if (response.ok) {
+                    inputElement.value = "";
+                    // reload messages (or rely on WS broadcast if connected)
+                    loadChat(selectedChannelId);
+                } else {
+                    let txt = await response.text();
+                    console.error('SendMessage failed', response.status, response.statusText, txt);
+                }
+            })
+            .catch(err => console.error('Lỗi khi gửi tin nhắn:', err));
+        }
+
+        // Start websocket on page load
+        (function init() {
+            connectSocket();
+            // Optional: reconnect when page becomes visible again
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                    connectSocket();
+                }
+            });
+        })();
     </script>
 
 </body>

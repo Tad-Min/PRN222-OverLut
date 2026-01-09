@@ -5,7 +5,6 @@ using OverLut.Models.BusinessObjects;
 using OverLut.Models.DAOs;
 using OverLut.Models.Repositories;
 
-
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -42,12 +41,26 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     );
 
 var app = builder.Build();
+
+// Important: set up routing/auth before the WebSocket accept middleware so HttpContext.User is populated
+app.UseRouting();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.UseWebSockets();
 
 app.Use(async (context, next) =>
 {
     if (context.Request.Path == "/ws")
     {
+        // Require authenticated user for the websocket endpoint
+        if (!(context.User?.Identity?.IsAuthenticated ?? false))
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return;
+        }
+
         if (context.WebSockets.IsWebSocketRequest)
         {
             using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
@@ -69,7 +82,6 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 
-app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
