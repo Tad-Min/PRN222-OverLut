@@ -277,6 +277,66 @@
                 visibility: visible;
             }
 
+        /*message box*/
+        /* --- MESSAGE BUBBLES --- */
+        .message-row {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 15px;
+            width: 100%;
+        }
+
+        /* Tin nhắn của người khác (bên trái) */
+        .message-received {
+            align-items: flex-start;
+        }
+
+        /* Tin nhắn của mình (bên phải) */
+        .message-sent {
+            align-items: flex-end;
+        }
+
+        .bubble {
+            max-width: 70%;
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-size: 15px;
+            font-weight: 500;
+            line-height: 1.4;
+            position: relative;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+        }
+
+        /* Màu sắc bong bóng chat */
+        .message-received .bubble {
+            background-color: #E0E0E0; /* Màu xám nhạt như hình */
+            color: #000;
+            border-bottom-left-radius: 5px; /* Tạo kiểu đuôi tin nhắn */
+        }
+
+        .message-sent .bubble {
+            background-color: #E0E0E0; /* Trong hình của bạn cả 2 đều xám, hoặc bạn có thể đổi sang var(--primary-blue) */
+            color: #000;
+            border-bottom-right-radius: 5px;
+        }
+
+        /* Chấm tròn nhỏ hiển thị trạng thái/avatar dưới tin nhắn (nếu cần giống hình) */
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            background-color: #D9D9D9;
+            border-radius: 50%;
+            margin-top: 5px;
+        }
+
+        .message-received .status-dot {
+            margin-left: 5px;
+        }
+
+        .message-sent .status-dot {
+            margin-right: 5px;
+        }
+
         /* Mobile Responsive */
         @@media (max-width: 768px) {
             .sidebar {
@@ -362,6 +422,15 @@
 
             <div id="chatbox" class="chat-box">
                 <div class="messages-display" id="messageList">
+                    <div class="message-row message-received">
+                        <div class="bubble">No</div>
+                        <div class="status-dot"></div>
+                    </div>
+
+                    <div class="message-row message-sent">
+                        <div class="bubble">I Love You</div>
+                        <div class="status-dot"></div>
+                    </div>
                 </div>
 
                 <div class="input-wrapper">
