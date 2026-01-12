@@ -109,6 +109,169 @@ namespace OverLut.Models.Repositories
                 return false;
             }
         }
+        
+        // Create message (used when uploading attachments that should be associated with a message)
+        public async Task<MessageDTO?> CreateMessageAsync(MessageDTO message)
+        {
+            if (message == null) return null;
+
+            var messageEntity = new Message
+            {
+                UserId = message.UserId,
+                ChannelId = message.ChannelId,
+                MessageType = message.MessageType,
+                Content = message.Content ?? string.Empty,
+                CreateAt = DateTime.UtcNow
+            };
+
+            await _messageDAO.CreateMessageAsync(messageEntity);
+
+            message.MessageId = messageEntity.MessageId;
+            message.CreateAt = messageEntity.CreateAt;
+
+            return message;
+        }
+
+        public async Task<AttachmentDTO?> UploadAttachmentAsync(Microsoft.AspNetCore.Http.IFormFile file, Guid channelId, Guid userId)
+        {
+            if (file == null) return null;
+
+            // Create an empty message to attach the file to
+            var msg = new MessageDTO
+            {
+                ChannelId = channelId,
+                UserId = userId,
+                MessageType = 2, // file
+                Content = string.Empty
+            };
+
+            var created = await CreateMessageAsync(msg);
+            if (created == null) return null;
+
+            // delegate to DAO to save blob/chunk and attachment record
+            var attachment = await _attachmentDAO.SaveAttachmentAsync(file, channelId, created.MessageId, userId);
+
+            // broadcast message DTO to members (filename as content)
+            try
+            {
+                var broadcast = new
+                {
+                    MessageId = created.MessageId,
+                    ChannelId = created.ChannelId,
+                    UserId = created.UserId,
+                    MessageType = created.MessageType,
+                    Content = attachment != null ? attachment.FileName : string.Empty,
+                    AttachmentId = attachment?.AttachmentId,
+                    FileBlobId = attachment?.FileBlobId,
+                    FileName = attachment?.FileName,
+                    ContentType = attachment?.ContentType,
+                    CreateAt = created.CreateAt
+                };
+
+                var jsonResponse = JsonConvert.SerializeObject(broadcast);
+
+                var memberIds = await _ChannelMemberDAO.GetUserIdsByChannelIdAsync(channelId);
+                var sendTasks = memberIds
+                    .Where(m => m != null)
+                    .Select(m => ChatWebSocketHandler.SendToUserAsync(m.UserId.ToString(), jsonResponse))
+                    .ToArray();
+
+                if (sendTasks.Length > 0)
+                {
+                    await Task.WhenAll(sendTasks);
+                }
+            }
+            catch
+            {
+                // ignore broadcast errors
+            }
+
+            return attachment;
+        }
+
+        // Chunked upload flow
+        public async Task<Guid?> StartUploadAsync(string fileName, string contentType)
+        {
+            return await _attachmentDAO.StartUploadAsync(fileName, contentType);
+        }
+
+        public async Task<bool> UploadChunkAsync(Guid fileBlobId, int sequenceNumber, byte[] data)
+        {
+            return await _attachmentDAO.SaveChunkAsync(fileBlobId, sequenceNumber, data);
+        }
+
+        public async Task<AttachmentDTO?> FinishUploadAsync(Guid fileBlobId, Guid channelId, long fileSize, Guid userId, string fileName, string contentType)
+        {
+            // create message first
+            var msg = new MessageDTO
+            {
+                ChannelId = channelId,
+                UserId = userId,
+                MessageType = 2,
+                Content = string.Empty
+            };
+
+            var created = await CreateMessageAsync(msg);
+            if (created == null) return null;
+
+            // mark blob complete
+            await _attachmentDAO.CompleteBlobAsync(fileBlobId);
+
+            var attachment = await _attachmentDAO.CreateAttachmentFromBlobAsync(fileBlobId, channelId, created.MessageId, userId, fileName, contentType, fileSize);
+
+            // broadcast similar to single-file flow
+            try
+            {
+                var broadcast = new
+                {
+                    MessageId = created.MessageId,
+                    ChannelId = created.ChannelId,
+                    UserId = created.UserId,
+                    MessageType = created.MessageType,
+                    Content = attachment != null ? attachment.FileName : string.Empty,
+                    AttachmentId = attachment?.AttachmentId,
+                    FileBlobId = attachment?.FileBlobId,
+                    FileName = attachment?.FileName,
+                    ContentType = attachment?.ContentType,
+                    CreateAt = created.CreateAt
+                };
+
+                var jsonResponse = JsonConvert.SerializeObject(broadcast);
+
+                var memberIds = await _ChannelMemberDAO.GetUserIdsByChannelIdAsync(channelId);
+                var sendTasks = memberIds
+                    .Where(m => m != null)
+                    .Select(m => ChatWebSocketHandler.SendToUserAsync(m.UserId.ToString(), jsonResponse))
+                    .ToArray();
+
+                if (sendTasks.Length > 0)
+                {
+                    await Task.WhenAll(sendTasks);
+                }
+            }
+            catch
+            {
+                // ignore
+            }
+
+            return attachment;
+        }
+        
+        public async Task<AttachmentDTO?> GetAttachmentAsync(Guid attachmentId)
+        {
+            return await _attachmentDAO.GetAttachmentByIdAsync(attachmentId);
+        }
+
+        public async Task<(byte[] data, string contentType, string fileName)?> DownloadAttachmentAsync(Guid attachmentId)
+        {
+            var att = await _attachmentDAO.GetAttachmentByIdAsync(attachmentId);
+            if (att == null) return null;
+
+            var blobBytes = await _attachmentDAO.ReadBlobAsync(att.FileBlobId);
+            if (blobBytes == null) return null;
+
+            return (blobBytes, att.ContentType, att.FileName);
+        }
         public async Task<bool> DeleteChannelAsync(Guid channelId )
         {
             var channel = await _channelDAO.GetChannelByIdAsync(channelId);

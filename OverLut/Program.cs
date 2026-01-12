@@ -16,7 +16,10 @@ builder.Services.AddDbContext<OverLutContext>(options =>
 
 builder.Services.AddDbContext<OverLutStorageContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("StorageConnection")));
+
+// DbContext Scoped
 builder.Services.AddScoped<OverLutContext>();
+builder.Services.AddScoped<OverLutStorageContext>();
 
 
 // DAO Scoped

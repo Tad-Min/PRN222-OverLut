@@ -1,5 +1,6 @@
 ﻿using OverLut.Models.BusinessObjects;
 using OverLut.Models.DTOs;
+using Microsoft.AspNetCore.Http;
 
 namespace OverLut.Models.Repositories
 {
@@ -26,6 +27,13 @@ namespace OverLut.Models.Repositories
         Task<bool> DeleteMessageAsync();
         #endregion
         #region Attachment methods
+        Task<AttachmentDTO?> UploadAttachmentAsync(Microsoft.AspNetCore.Http.IFormFile file, Guid channelId, Guid userId);
+        Task<(byte[] data, string contentType, string fileName)?> DownloadAttachmentAsync(Guid attachmentId);
+        Task<AttachmentDTO?> GetAttachmentAsync(Guid attachmentId);
+        // Chunked upload support
+        Task<Guid?> StartUploadAsync(string fileName, string contentType);
+        Task<bool> UploadChunkAsync(Guid fileBlobId, int sequenceNumber, byte[] data);
+        Task<AttachmentDTO?> FinishUploadAsync(Guid fileBlobId, Guid channelId, long fileSize, Guid userId, string fileName, string contentType);
         #endregion
         #region ReadReceipt methods
         #endregion

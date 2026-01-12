@@ -432,12 +432,13 @@
 
                 <div class="input-wrapper">
                     <div class="input-container">
-                        <div class="btn-plus">
+                        <div id="btnPlus" class="btn-plus" title="Upload file">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                 <line x1="12" y1="5" x2="12" y2="19"></line>
                                 <line x1="5" y1="12" x2="19" y2="12"></line>
                             </svg>
                         </div>
+                        <input id="fileInput" type="file" style="display:none" />
                         <input id="chatInput" type="text" class="chat-input" placeholder="Enter......." onkeypress="handleKeyPress(event)" />
                     </div>
                 </div>
@@ -529,9 +530,47 @@
             const isSentByMe = String(userId) === String(currentUserId);
             const messageClass = isSentByMe ? "message-sent" : "message-received";
 
+            // dedupe by messageId or attachmentId to avoid duplicates
+            const messageId = msg.MessageId ?? msg.messageId ?? null;
+            const attachmentId = msg.AttachmentId ?? msg.attachmentId ?? null;
+
+            if (messageId) {
+                if (messageList.querySelector(`[data-message-id="${messageId}"]`)) return; // already present
+            }
+            if (attachmentId) {
+                if (messageList.querySelector(`[data-attachment-id="${attachmentId}"]`)) return; // already present
+            }
+
+            // If message contains attachment metadata, render appropriate element
+            let bubbleInner = '';
+            const fileName = msg.FileName ?? msg.fileName ?? null;
+            const contentType = msg.ContentType ?? msg.contentType ?? null;
+
+            if (attachmentId || fileName) {
+                // prefer contentType to decide preview
+                if (contentType && contentType.startsWith('image/')) {
+                    // image preview
+                    bubbleInner = `<img src="/ChatPage/DownloadAttachment/${attachmentId}" alt="${escapeHtml(fileName || content)}" style="max-width:240px; border-radius:8px;"/>`;
+                } else if (contentType && contentType.startsWith('video/')) {
+                    // video preview
+                    bubbleInner = `<video controls style="max-width:320px; border-radius:8px;"><source src="/ChatPage/DownloadAttachment/${attachmentId}" type="${escapeHtml(contentType)}">Your browser does not support the video tag.</video>`;
+                } else {
+                    // generic file link
+                    const displayName = escapeHtml(fileName || content);
+                    bubbleInner = `<a href="/ChatPage/DownloadAttachment/${attachmentId}" target="_blank">${displayName}</a>`;
+                }
+            } else {
+                // plain text message, escape to avoid XSS
+                bubbleInner = escapeHtml(String(content));
+            }
+
+            const idAttrs = [];
+            if (messageId) idAttrs.push(`data-message-id="${messageId}"`);
+            if (attachmentId) idAttrs.push(`data-attachment-id="${attachmentId}"`);
+
             const msgHtml = `
-                <div class="message-row ${messageClass}">
-                    <div class="bubble">${escapeHtml(String(content))}</div>
+                <div class="message-row ${messageClass}" ${idAttrs.join(' ')}>
+                    <div class="bubble">${bubbleInner}</div>
                     <div class="status-dot"></div>
                 </div>
             `;
@@ -670,6 +709,7 @@
         // Start websocket on page load
         (function init() {
             connectSocket();
+            setupFileUpload();
             // Optional: reconnect when page becomes visible again
             document.addEventListener('visibilitychange', () => {
                 if (document.visibilityState === 'visible') {
@@ -677,6 +717,134 @@
                 }
             });
         })();
+
+        function setupFileUpload() {
+            const btn = document.getElementById('btnPlus');
+            const input = document.getElementById('fileInput');
+
+            if (!btn || !input) return;
+
+            btn.addEventListener('click', () => {
+                input.value = null;
+                input.click();
+            });
+
+            input.addEventListener('change', async (ev) => {
+                const f = input.files && input.files[0];
+                if (!f) return;
+
+                if (!selectedChannelId) {
+                    alert('Vui lòng chọn một phòng chat!');
+                    return;
+                }
+
+                // optimistic append with updatable temp message
+                const tempId = 'tmpfile-' + Date.now() + '-' + Math.random().toString(36).slice(2,8);
+                appendTempMessage(tempId, 'Uploading ' + f.name + ' (0%)');
+
+                try {
+                    const CHUNK_SIZE = 1024 * 1024 * 2; // 2MB chunks
+
+                    if (f.size <= CHUNK_SIZE) {
+                        // small file: use existing single-request upload for simplicity
+                        const form = new FormData();
+                        form.append('file', f);
+                        form.append('channelId', selectedChannelId);
+
+                        const resp = await fetch('/ChatPage/UploadAttachment', { method: 'POST', body: form });
+                        if (!resp.ok) throw new Error('Upload failed');
+
+                        // success
+                        removeTempIfMatches('Uploading ' + f.name + ' (0%)');
+                        removeTempIfMatches('Uploading ' + f.name);
+
+                        if (!socketOpen || !socket || socket.readyState !== WebSocket.OPEN) {
+                            loadChat(selectedChannelId);
+                        }
+                        return;
+                    }
+
+                    // chunked upload flow
+                    // 1) start upload -> get fileBlobId
+                    const startForm = new FormData();
+                    startForm.append('fileName', f.name);
+                    startForm.append('contentType', f.type || 'application/octet-stream');
+
+                    const startResp = await fetch('/ChatPage/StartUpload', { method: 'POST', body: startForm });
+                    if (!startResp.ok) throw new Error('Failed to start upload');
+                    const startJson = await startResp.json();
+                    const fileBlobId = startJson.fileBlobId;
+                    if (!fileBlobId) throw new Error('No fileBlobId returned');
+
+                    // upload chunks sequentially with simple retry logic
+                    let offset = 0;
+                    let seq = 1;
+                    while (offset < f.size) {
+                        const end = Math.min(offset + CHUNK_SIZE, f.size);
+                        const slice = f.slice(offset, end);
+
+                        // attempt upload with retries
+                        const maxRetries = 3;
+                        let attempt = 0;
+                        let uploaded = false;
+
+                        while (attempt < maxRetries && !uploaded) {
+                            attempt++;
+                            try {
+                                const chunkForm = new FormData();
+                                chunkForm.append('fileBlobId', fileBlobId);
+                                chunkForm.append('sequenceNumber', seq);
+                                chunkForm.append('chunk', slice, f.name + '.part' + seq);
+
+                                const r = await fetch('/ChatPage/UploadChunk', { method: 'POST', body: chunkForm });
+                                if (!r.ok) throw new Error('Chunk upload failed: ' + r.status);
+                                uploaded = true;
+                            } catch (err) {
+                                console.warn('Chunk upload attempt', attempt, 'failed', err);
+                                if (attempt >= maxRetries) throw err;
+                                // small backoff
+                                await new Promise(res => setTimeout(res, 500 * attempt));
+                            }
+                        }
+
+                        offset = end;
+                        seq++;
+
+                        // update progress in optimistic message
+                        try {
+                            const pct = Math.floor((offset / f.size) * 100);
+                            const messageList = document.getElementById('messageList');
+                            const tempEl = messageList.querySelector(`[data-temp-id="${tempId}"] .bubble`);
+                            if (tempEl) tempEl.textContent = 'Uploading ' + f.name + ' (' + pct + '%)';
+                        } catch (ex) { /* ignore */ }
+                    }
+
+                    // finalize
+                    const finishForm = new FormData();
+                    finishForm.append('fileBlobId', fileBlobId);
+                    finishForm.append('channelId', selectedChannelId);
+                    finishForm.append('fileSize', String(f.size));
+                    finishForm.append('fileName', f.name);
+                    finishForm.append('contentType', f.type || 'application/octet-stream');
+
+                    const finishResp = await fetch('/ChatPage/FinishUpload', { method: 'POST', body: finishForm });
+                    if (!finishResp.ok) throw new Error('Failed to finish upload');
+
+                    // remove optimistic temp message
+                    removeTempIfMatches('Uploading ' + f.name + ' (0%)');
+                    removeTempIfMatches('Uploading ' + f.name);
+
+                    if (!socketOpen || !socket || socket.readyState !== WebSocket.OPEN) {
+                        loadChat(selectedChannelId);
+                    }
+                } catch (ex) {
+                    console.error('Upload failed', ex);
+                    try { removeTempIfMatches('Uploading ' + f.name + ' (0%)'); } catch {}
+                    try { removeTempIfMatches('Uploading ' + f.name); } catch {}
+                    alert('Upload failed');
+                }
+            });
+        }
     </script>
 
 </body>
